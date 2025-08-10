@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lost & Found</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f9; }
+        h1 { text-align: center; }
+        .form-container, .items-container { max-width: 800px; margin: auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        input, select, button { padding: 10px; margin: 5px; width: calc(100% - 22px); }
+        button { background: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background: #218838; }
+        .item-card { background: #fff; padding: 15px; margin: 10px 0; border-radius: 5px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+        #map { height: 300px; margin-top: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Lost & Found Items</h1>
+
+    <div class="form-container">
+        <h3>Add Item</h3>
+        <select id="type">
+            <option value="Lost">Lost</option>
+            <option value="Found">Found</option>
+        </select>
+        <input type="text" id="description" placeholder="Item description">
+        <input type="number" id="latitude" step="any" placeholder="Latitude">
+        <input type="number" id="longitude" step="any" placeholder="Longitude">
+        <input type="date" id="date">
+        <button onclick="addItem()">Add Item</button>
+    </div>
+
+    <div class="form-container">
+        <h3>All Items</h3>
+        <button onclick="loadItems()">Load Items</button>
+        <div id="items"></div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([20, 77], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a>'
+        }).addTo(map);
+
+        async function addItem() {
+            const type = document.getElementById("type").value;
+            const description = document.getElementById("description").value;
+            const latitude = parseFloat(document.getElementById("latitude").value);
+            const longitude = parseFloat(document.getElementById("longitude").value);
+            const date = document.getElementById("date").value;
+
+            const res = await fetch('/add', {
+                method: 'POST',
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type, description, latitude, longitude, date })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Item added successfully!");
+                loadItems();
+            } else {
+                alert("Error adding item.");
+            }
+        }
+
+        async function loadItems() {
+            const res = await fetch('/items');
+            const items = await res.json();
+            const container = document.getElementById("items");
+            container.innerHTML = "";
+            map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+
+            items.forEach(item => {
+                container.innerHTML += `<div class="item-card"><b>${item.type}</b>: ${item.description} <br>
+                📍 (${item.latitude}, ${item.longitude})<br>📅 ${item.date}</div>`;
+                L.marker([item.latitude, item.longitude]).addTo(map)
+                    .bindPopup(`<b>${item.type}</b><br>${item.description}`);
+            });
+        }
+    </script>
+</body>
+</html>
